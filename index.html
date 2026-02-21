@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>বিরিয়ানির খোঁজে আমরা</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@1.35.6/dist/umd/supabase.min.js"></script>
 
 <style>
 html,body{
@@ -58,26 +58,28 @@ border-radius:20px;
 
 <script>
 
-// Supabase connect
+// Supabase Init (v1 UMD)
 const supabase = window.supabase.createClient(
 'https://tdrdlydhleggthyfhhnj.supabase.co',
 'sb_publishable_XzOZ_4emiYr-9yPHVYxfCg_9yEzW7n3'
 );
 
-// Map init
+// Map Init
 const map = L.map('map').setView([23.8103, 90.4125], 12);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
 maxZoom:19
 }).addTo(map);
 
-// Load spots
+// Load Spots
 async function loadSpots(){
-const {data,error} = await supabase.from('spots').select('*');
+
+const { data, error } = await supabase
+.from('spots')
+.select('*');
 
 if(error){
-console.log(error);
-alert("Database error. Check console.");
+console.log("DB Error:", error);
 return;
 }
 
