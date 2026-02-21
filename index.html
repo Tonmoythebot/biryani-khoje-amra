@@ -9,28 +9,21 @@
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
 
 <style>
 body{margin:0;font-family:'Segoe UI',sans-serif;background:#f4f6f9;}
 header{background:linear-gradient(135deg,#0f9d58,#087f3f);
-color:white;padding:20px;text-align:center;font-size:20px;font-weight:bold;}
-.search-box{margin:-25px auto 10px auto;width:90%;background:white;
-padding:12px;border-radius:15px;box-shadow:0 4px 12px rgba(0,0,0,0.1);
-display:flex;gap:10px;}
-.search-box input{flex:1;border:none;outline:none;font-size:14px;}
-.search-box button{background:#ff8c00;border:none;color:white;
-padding:8px 12px;border-radius:10px;cursor:pointer;}
-#map{height:350px;width:100%;margin-top:10px;}
-.card{background:white;margin:15px;padding:15px;border-radius:15px;
-box-shadow:0 6px 15px rgba(0,0,0,0.08);transition:0.3s;}
-.card:hover{transform:translateY(-3px);}
-.vote-section{margin-top:8px;}
-.vote-section button{margin-right:5px;background:#ff8c00;color:white;
-border:none;padding:6px 10px;border-radius:8px;cursor:pointer;}
-.verified{background:#0f9d58;color:white;padding:4px 8px;border-radius:8px;font-size:12px;}
-.fakeWarn{background:#d93025;color:white;padding:4px 8px;border-radius:8px;font-size:12px;}
+color:white;padding:18px;text-align:center;font-size:18px;font-weight:bold;}
+#map{height:300px;}
+.container{padding:10px;}
+.card{background:white;margin:10px 0;padding:12px;border-radius:12px;
+box-shadow:0 4px 10px rgba(0,0,0,0.08);}
+button{padding:6px 10px;border:none;border-radius:6px;background:#ff8c00;color:white;}
+.badge{padding:4px 8px;border-radius:8px;font-size:12px;color:white;}
+.verified{background:#0f9d58;}
+.fake{background:#d93025;}
+input{width:100%;padding:6px;margin:4px 0;}
 </style>
 </head>
 
@@ -38,81 +31,105 @@ border:none;padding:6px 10px;border-radius:8px;cursor:pointer;}
 
 <header>🍽 বিরিয়ানির খোঁজে আমরা</header>
 
-<div class="search-box">
-<input type="text" placeholder="এলাকা খুঁজুন...">
-<button onclick="getLocation()">📍 Nearby</button>
-<a href="admin.html">Admin</a>
-</div>
-
 <div id="map"></div>
+
+<div class="container">
+
+<h3>📍 নতুন Spot যোগ করুন</h3>
+
+<input type="text" id="name" placeholder="মসজিদের নাম">
+<input type="text" id="location" placeholder="এলাকা">
+
+<input type="number" id="lat" placeholder="Latitude">
+<input type="number" id="lng" placeholder="Longitude">
+
+<button onclick="detectLocation()">Auto Detect</button>
+<button onclick="submitSpot()">Submit</button>
+
+<hr>
+
+<h3>📋 Approved Spots</h3>
 <div id="spotList"></div>
 
+</div>
+
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyDnCP_Dc3ok6liqzK6j5BAgs0jKfr600Kc",
-  authDomain: "biryani-khoje-amra.firebaseapp.com",
-  databaseURL: "https://biryani-khoje-amra-default-rtdb.asia-southeast1.firebasedatabase.app/",
-  projectId: "biryani-khoje-amra",
-  storageBucket: "biryani-khoje-amra.firebasestorage.app",
-  messagingSenderId: "755272589235",
-  appId: "1:755272589235:web:83762f79622a749b8375c6"
+
+const firebaseConfig={
+apiKey:"AIzaSyDnCP_Dc3ok6liqzK6j5BAgs0jKfr600Kc",
+authDomain:"biryani-khoje-amra.firebaseapp.com",
+databaseURL:"https://biryani-khoje-amra-default-rtdb.asia-southeast1.firebasedatabase.app/",
+projectId:"biryani-khoje-amra"
 };
 
 firebase.initializeApp(firebaseConfig);
-const database = firebase.database();
+const db=firebase.database();
 
-let map = L.map('map').setView([23.8103, 90.4125], 12);
+let map=L.map('map').setView([23.8103,90.4125],12);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-{attribution:'© OpenStreetMap contributors'}).addTo(map);
+{attribution:'© OpenStreetMap'}).addTo(map);
 
-function getLocation(){
+function detectLocation(){
 navigator.geolocation.getCurrentPosition(pos=>{
-map.setView([pos.coords.latitude,pos.coords.longitude],14);
+document.getElementById("lat").value=pos.coords.latitude;
+document.getElementById("lng").value=pos.coords.longitude;
 });
 }
 
-database.ref("spots").on("value",snap=>{
+function submitSpot(){
+db.ref("spots/pending").push({
+name:name.value,
+location:location.value,
+lat:parseFloat(lat.value),
+lng:parseFloat(lng.value)
+});
+alert("Pending for approval");
+}
+
+db.ref("spots/approved").on("value",snap=>{
 const data=snap.val();
-document.getElementById("spotList").innerHTML="";
+spotList.innerHTML="";
 map.eachLayer(layer=>{if(layer instanceof L.Marker) map.removeLayer(layer);});
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 for(let key in data){
-const spot=data[key];
-const trueCount=spot.trueCount||0;
-const fakeCount=spot.fakeCount||0;
-const total=trueCount+fakeCount;
+let spot=data[key];
+let trueCount=spot.trueCount||0;
+let fakeCount=spot.fakeCount||0;
+let total=trueCount+fakeCount;
 let badge="";
+
 if(total>0){
 let percent=(trueCount/total)*100;
-if(percent>=70) badge=`<span class="verified">Verified</span>`;
-else if(percent<50) badge=`<span class="fakeWarn">Suspicious</span>`;
+if(percent>=70) badge=`<span class="badge verified">Verified</span>`;
+else if(percent<50) badge=`<span class="badge fake">Suspicious</span>`;
 }
 
 L.marker([spot.lat,spot.lng]).addTo(map)
 .bindPopup(`<b>${spot.name}</b><br>${spot.location}`);
 
-document.getElementById("spotList").innerHTML+=`
+spotList.innerHTML+=`
 <div class="card">
-<h3>${spot.name}</h3>
+<h4>${spot.name}</h4>
 <p>${spot.location}</p>
 ${badge}
-<div class="vote-section">
+<br>
 <button onclick="voteTrue('${key}')">👍 ${trueCount}</button>
 <button onclick="voteFake('${key}')">❌ ${fakeCount}</button>
-</div>
 </div>`;
 }
 });
 
 function voteTrue(id){
-database.ref("spots/"+id+"/trueCount")
-.transaction(count=>(count||0)+1);
+db.ref("spots/approved/"+id+"/trueCount")
+.transaction(c=>(c||0)+1);
 }
 function voteFake(id){
-database.ref("spots/"+id+"/fakeCount")
-.transaction(count=>(count||0)+1);
+db.ref("spots/approved/"+id+"/fakeCount")
+.transaction(c=>(c||0)+1);
 }
+
 </script>
 </body>
 </html>
