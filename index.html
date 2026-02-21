@@ -7,23 +7,64 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
 
 <style>
-body{margin:0;font-family:'Segoe UI',sans-serif;background:#f4f6f9;}
-header{background:linear-gradient(135deg,#0f9d58,#087f3f);
-color:white;padding:18px;text-align:center;font-size:18px;font-weight:bold;}
-#map{height:300px;}
-.container{padding:10px;}
-.card{background:white;margin:10px 0;padding:12px;border-radius:12px;
-box-shadow:0 4px 10px rgba(0,0,0,0.08);}
-button{padding:6px 10px;border:none;border-radius:6px;background:#ff8c00;color:white;}
-.badge{padding:4px 8px;border-radius:8px;font-size:12px;color:white;}
-.verified{background:#0f9d58;}
-.fake{background:#d93025;}
-input{width:100%;padding:6px;margin:4px 0;}
+body,html{
+margin:0;
+padding:0;
+height:100%;
+font-family:sans-serif;
+}
+
+header{
+position:absolute;
+top:0;
+left:0;
+width:100%;
+background:#0f9d58;
+color:white;
+padding:15px;
+text-align:center;
+z-index:1000;
+font-weight:bold;
+}
+
+#map{
+height:100vh;
+width:100%;
+}
+
+.floating-form{
+position:absolute;
+bottom:20px;
+left:50%;
+transform:translateX(-50%);
+background:white;
+padding:12px;
+border-radius:12px;
+box-shadow:0 4px 15px rgba(0,0,0,0.2);
+width:90%;
+max-width:400px;
+z-index:1000;
+}
+
+input{
+width:100%;
+padding:6px;
+margin:4px 0;
+}
+
+button{
+padding:6px 10px;
+border:none;
+border-radius:6px;
+background:#ff8c00;
+color:white;
+cursor:pointer;
+margin-top:5px;
+}
 </style>
 </head>
 
@@ -33,24 +74,11 @@ input{width:100%;padding:6px;margin:4px 0;}
 
 <div id="map"></div>
 
-<div class="container">
-
-<h3>📍 নতুন Spot যোগ করুন</h3>
-
+<div class="floating-form">
 <input type="text" id="name" placeholder="মসজিদের নাম">
 <input type="text" id="location" placeholder="এলাকা">
-
-<input type="number" id="lat" placeholder="Latitude">
-<input type="number" id="lng" placeholder="Longitude">
-
-<button onclick="detectLocation()">Auto Detect</button>
+<button onclick="autoLocation()">Auto Location</button>
 <button onclick="submitSpot()">Submit</button>
-
-<hr>
-
-<h3>📋 Approved Spots</h3>
-<div id="spotList"></div>
-
 </div>
 
 <script>
@@ -65,15 +93,19 @@ projectId:"biryani-khoje-amra"
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
 
-let map=L.map('map').setView([23.8103,90.4125],12);
+let userLat=23.8103;
+let userLng=90.4125;
+
+let map=L.map('map').setView([userLat,userLng],12);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
 {attribution:'© OpenStreetMap'}).addTo(map);
 
-function detectLocation(){
+function autoLocation(){
 navigator.geolocation.getCurrentPosition(pos=>{
-document.getElementById("lat").value=pos.coords.latitude;
-document.getElementById("lng").value=pos.coords.longitude;
+userLat=pos.coords.latitude;
+userLng=pos.coords.longitude;
+map.setView([userLat,userLng],15);
 });
 }
 
@@ -81,55 +113,53 @@ function submitSpot(){
 db.ref("spots/pending").push({
 name:name.value,
 location:location.value,
-lat:parseFloat(lat.value),
-lng:parseFloat(lng.value)
+lat:userLat,
+lng:userLng
 });
 alert("Pending for approval");
 }
 
+function loadSpots(){
 db.ref("spots/approved").on("value",snap=>{
 const data=snap.val();
-spotList.innerHTML="";
-map.eachLayer(layer=>{if(layer instanceof L.Marker) map.removeLayer(layer);});
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+map.eachLayer(layer=>{
+if(layer instanceof L.Marker) map.removeLayer(layer);
+});
 
 for(let key in data){
 let spot=data[key];
 let trueCount=spot.trueCount||0;
 let fakeCount=spot.fakeCount||0;
-let total=trueCount+fakeCount;
-let badge="";
 
-if(total>0){
-let percent=(trueCount/total)*100;
-if(percent>=70) badge=`<span class="badge verified">Verified</span>`;
-else if(percent<50) badge=`<span class="badge fake">Suspicious</span>`;
-}
+let popupContent=`
+<b>${spot.name}</b><br>
+${spot.location}<br><br>
+👍 ${trueCount} 
+<button onclick="voteTrue('${key}')">Vote True</button><br><br>
+❌ ${fakeCount} 
+<button onclick="voteFake('${key}')">Vote Fake</button>
+`;
 
 L.marker([spot.lat,spot.lng]).addTo(map)
-.bindPopup(`<b>${spot.name}</b><br>${spot.location}`);
-
-spotList.innerHTML+=`
-<div class="card">
-<h4>${spot.name}</h4>
-<p>${spot.location}</p>
-${badge}
-<br>
-<button onclick="voteTrue('${key}')">👍 ${trueCount}</button>
-<button onclick="voteFake('${key}')">❌ ${fakeCount}</button>
-</div>`;
+.bindPopup(popupContent);
 }
 });
+}
 
 function voteTrue(id){
 db.ref("spots/approved/"+id+"/trueCount")
 .transaction(c=>(c||0)+1);
 }
+
 function voteFake(id){
 db.ref("spots/approved/"+id+"/fakeCount")
 .transaction(c=>(c||0)+1);
 }
 
+loadSpots();
+
 </script>
+
 </body>
 </html>
