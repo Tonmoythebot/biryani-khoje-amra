@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="bn">
 <head>
-<meta charset="utf-8" />
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>বিরিয়ানির খোঁজে আমরা</title>
 
@@ -15,7 +15,7 @@ html,body{
 margin:0;
 padding:0;
 height:100%;
-font-family:sans-serif;
+font-family:system-ui;
 }
 
 #map{
@@ -28,21 +28,42 @@ position:absolute;
 top:15px;
 left:50%;
 transform:translateX(-50%);
-width:90%;
+width:92%;
 background:#0f7a4f;
 color:white;
-padding:10px;
-border-radius:12px;
+padding:14px;
+border-radius:20px;
 display:flex;
 justify-content:space-between;
+align-items:center;
 z-index:1000;
+box-shadow:0 8px 25px rgba(0,0,0,0.25);
 }
 
 .counter{
 background:white;
 color:#0f7a4f;
-padding:5px 10px;
+padding:6px 14px;
 border-radius:20px;
+font-weight:600;
+}
+
+.fab{
+position:absolute;
+bottom:30px;
+right:20px;
+width:65px;
+height:65px;
+border-radius:50%;
+background:linear-gradient(135deg,#0f7a4f,#16a34a);
+color:white;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:32px;
+cursor:pointer;
+z-index:1000;
+box-shadow:0 10px 25px rgba(0,0,0,0.35);
 }
 </style>
 </head>
@@ -56,23 +77,32 @@ border-radius:20px;
 <div class="counter" id="count">0 Spots</div>
 </div>
 
+<div class="fab" id="addBtn">+</div>
+
 <script>
 
-// Supabase Init (v1 UMD)
+// 🔥 Supabase Init
 const supabase = window.supabase.createClient(
 'https://tdrdlydhleggthyfhhnj.supabase.co',
 'sb_publishable_XzOZ_4emiYr-9yPHVYxfCg_9yEzW7n3'
 );
 
-// Map Init
+// 🗺️ Map Init
 const map = L.map('map').setView([23.8103, 90.4125], 12);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
 maxZoom:19
 }).addTo(map);
 
-// Load Spots
+// 📍 Load Spots
 async function loadSpots(){
+
+// Remove old markers
+map.eachLayer(function(layer){
+if(layer instanceof L.Marker){
+map.removeLayer(layer);
+}
+});
 
 const { data, error } = await supabase
 .from('spots')
@@ -86,7 +116,11 @@ return;
 data.forEach(spot=>{
 L.marker([spot.lat,spot.lng])
 .addTo(map)
-.bindPopup(`<b>${spot.name}</b><br>${spot.area}`);
+.bindPopup(`
+<b>${spot.name}</b><br>
+${spot.area}<br>
+🍛 ${spot.food_type}
+`);
 });
 
 document.getElementById("count").innerText =
@@ -94,6 +128,29 @@ data.length + " Spots";
 }
 
 loadSpots();
+
+// ➕ Add Spot Button
+document.getElementById("addBtn").onclick = function(){
+
+navigator.geolocation.getCurrentPosition(async(pos)=>{
+
+await supabase.from('spots').insert([{
+name:"নতুন স্পট",
+area:"অটো লোকেশন",
+food_type:"বিরিয়ানি",
+lat:pos.coords.latitude,
+lng:pos.coords.longitude
+}]);
+
+map.setView([pos.coords.latitude,pos.coords.longitude],14);
+
+loadSpots();
+
+}, function(){
+alert("লোকেশন অনুমতি দিন");
+});
+
+};
 
 </script>
 
