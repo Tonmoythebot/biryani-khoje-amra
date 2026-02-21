@@ -4,19 +4,45 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<title>বিরিয়ানির খোঁজে আমরা</title>
+
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
-html, body {
+html,body{
 margin:0;
 padding:0;
 height:100%;
+font-family:sans-serif;
 }
 
-#map {
+#map{
 height:100%;
 width:100%;
+}
+
+.topbar{
+position:absolute;
+top:15px;
+left:50%;
+transform:translateX(-50%);
+width:90%;
+background:#0f7a4f;
+color:white;
+padding:10px;
+border-radius:12px;
+display:flex;
+justify-content:space-between;
+z-index:1000;
+}
+
+.counter{
+background:white;
+color:#0f7a4f;
+padding:5px 10px;
+border-radius:20px;
 }
 </style>
 </head>
@@ -25,17 +51,48 @@ width:100%;
 
 <div id="map"></div>
 
+<div class="topbar">
+<div>🍽 বিরিয়ানির খোঁজে আমরা</div>
+<div class="counter" id="count">0 Spots</div>
+</div>
+
 <script>
+
+// Supabase connect
+const supabase = window.supabase.createClient(
+'https://tdrdlydhleggthyfhhnj.supabase.co',
+'sb_publishable_XzOZ_4emiYr-9yPHVYxfCg_9yEzW7n3'
+);
+
+// Map init
 const map = L.map('map').setView([23.8103, 90.4125], 12);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-maxZoom: 19,
-attribution: '&copy; OpenStreetMap'
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+maxZoom:19
 }).addTo(map);
 
-L.marker([23.8103, 90.4125]).addTo(map)
-.bindPopup("Dhaka Test")
-.openPopup();
+// Load spots
+async function loadSpots(){
+const {data,error} = await supabase.from('spots').select('*');
+
+if(error){
+console.log(error);
+alert("Database error. Check console.");
+return;
+}
+
+data.forEach(spot=>{
+L.marker([spot.lat,spot.lng])
+.addTo(map)
+.bindPopup(`<b>${spot.name}</b><br>${spot.area}`);
+});
+
+document.getElementById("count").innerText =
+data.length + " Spots";
+}
+
+loadSpots();
+
 </script>
 
 </body>
