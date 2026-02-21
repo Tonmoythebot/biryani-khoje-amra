@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>বিরিয়ানির খোঁজে আমরা</title>
 
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
 
@@ -50,13 +55,13 @@ bottom:100px;
 right:20px;
 background:#ff8c00;
 color:white;
-width:55px;
-height:55px;
+width:60px;
+height:60px;
 border-radius:50%;
 display:flex;
 align-items:center;
 justify-content:center;
-font-size:28px;
+font-size:30px;
 cursor:pointer;
 box-shadow:0 4px 15px rgba(0,0,0,0.3);
 z-index:1000;
@@ -67,7 +72,7 @@ position:absolute;
 bottom:0;
 width:100%;
 background:white;
-max-height:40%;
+max-height:35%;
 overflow:auto;
 border-top-left-radius:20px;
 border-top-right-radius:20px;
@@ -108,6 +113,7 @@ width:100%;
 padding:8px;
 margin-bottom:8px;
 }
+
 button{
 background:#ff8c00;
 border:none;
@@ -147,14 +153,13 @@ cursor:pointer;
 <option>চিকেন বিরিয়ানি</option>
 <option>মিশ্র</option>
 </select>
-<button onclick="autoLocation()">Auto Detect Location</button>
+<button onclick="autoLocation()">📍 Auto Detect</button>
 <button onclick="submitSpot()">Submit</button>
 <button onclick="closeModal()">Cancel</button>
 </div>
 </div>
 
 <script>
-
 const firebaseConfig={
 apiKey:"AIzaSyDnCP_Dc3ok6liqzK6j5BAgs0jKfr600Kc",
 authDomain:"biryani-khoje-amra.firebaseapp.com",
@@ -165,54 +170,51 @@ projectId:"biryani-khoje-amra"
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
 
-let map;
-let userLat=23.8103;
-let userLng=90.4125;
+let map=L.map('map').setView([23.8103,90.4125],12);
 
-function initMap(){
-map=new google.maps.Map(document.getElementById("map"),{
-center:{lat:userLat,lng:userLng},
-zoom:12
-});
-loadSpots();
-}
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+attribution:'© OpenStreetMap contributors'
+}).addTo(map);
 
 function openModal(){ addModal.style.display="flex"; }
 function closeModal(){ addModal.style.display="none"; }
 
 function autoLocation(){
 navigator.geolocation.getCurrentPosition(pos=>{
-userLat=pos.coords.latitude;
-userLng=pos.coords.longitude;
+map.setView([pos.coords.latitude,pos.coords.longitude],15);
 });
 }
 
 function submitSpot(){
-db.ref("spots/pending").push({
+navigator.geolocation.getCurrentPosition(pos=>{
+db.ref("spots/approved").push({
 name:name.value,
 location:location.value,
 food:foodType.value,
-lat:userLat,
-lng:userLng,
+lat:pos.coords.latitude,
+lng:pos.coords.longitude,
 trueCount:0,
 fakeCount:0
 });
-alert("Approval Pending");
+alert("Spot Added");
 closeModal();
+});
 }
 
 function loadSpots(){
 db.ref("spots/approved").on("value",snap=>{
 spotList.innerHTML="";
 let count=0;
+map.eachLayer(layer=>{
+if(layer instanceof L.Marker) map.removeLayer(layer);
+});
+
 snap.forEach(child=>{
 let spot=child.val();
 count++;
 
-let marker=new google.maps.Marker({
-position:{lat:spot.lat,lng:spot.lng},
-map:map
-});
+L.marker([spot.lat,spot.lng]).addTo(map)
+.bindPopup(`<b>${spot.name}</b><br>${spot.location}<br>${spot.food}`);
 
 let card=document.createElement("div");
 card.className="spot-card";
@@ -224,14 +226,12 @@ ${spot.food}<br>
 `;
 spotList.appendChild(card);
 });
+
 spotCount.innerText=count+" Spots";
 });
 }
 
-</script>
-
-<script async defer
-src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCSslPfCDshw6Y3dy9Ea9BOyI8HLRuKFgQ&callback=initMap">
+loadSpots();
 </script>
 
 </body>
