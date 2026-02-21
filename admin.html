@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Admin Panel</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
+</head>
+<body>
+
+<h2>Admin Login</h2>
+<input type="email" id="email" placeholder="Email">
+<input type="password" id="password" placeholder="Password">
+<button onclick="login()">Login</button>
+
+<hr>
+
+<div id="dashboard" style="display:none;">
+<h2>Add Spot</h2>
+<input type="text" id="name" placeholder="মসজিদের নাম"><br>
+<input type="text" id="location" placeholder="লোকেশন"><br>
+<input type="number" id="lat" placeholder="Latitude"><br>
+<input type="number" id="lng" placeholder="Longitude"><br>
+<button onclick="addSpot()">Add</button>
+<button onclick="logout()">Logout</button>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDnCP_Dc3ok6liqzK6j5BAgs0jKfr600Kc",
+  authDomain: "biryani-khoje-amra.firebaseapp.com",
+  databaseURL: "https://biryani-khoje-amra-default-rtdb.asia-southeast1.firebasedatabase.app/",
+  projectId: "biryani-khoje-amra"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth();
+const database=firebase.database();
+
+function login(){
+auth.signInWithEmailAndPassword(
+document.getElementById("email").value,
+document.getElementById("password").value
+).then(()=>{
+document.getElementById("dashboard").style.display="block";
+}).catch(()=>alert("Login Failed"));
+}
+
+function logout(){
+auth.signOut();
+location.reload();
+}
+
+function addSpot(){
+database.ref("spots").push({
+name:document.getElementById("name").value,
+location:document.getElementById("location").value,
+lat:parseFloat(document.getElementById("lat").value),
+lng:parseFloat(document.getElementById("lng").value),
+trueCount:0,
+fakeCount:0
+});
+alert("Spot Added");
+}
+</script>
+</body>
+</html>
