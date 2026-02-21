@@ -1,237 +1,31 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html>
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8" />
+<title>Test Map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>বিরিয়ানির খোঁজে আমরা</title>
 
-<!-- Leaflet CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
-
 <style>
-body,html{margin:0;padding:0;height:100%;font-family:sans-serif;background:#f5f5f5}
-#map{height:100vh;width:100%}
-
-.topbar{
-position:absolute;
-top:10px;
-left:50%;
-transform:translateX(-50%);
-width:95%;
-max-width:800px;
-background:white;
-border-radius:15px;
-padding:10px;
-display:flex;
-align-items:center;
-box-shadow:0 4px 20px rgba(0,0,0,0.2);
-z-index:1000;
-}
-
-.topbar input{
-flex:1;
-border:none;
-outline:none;
-padding:8px;
-}
-
-.counter{
-background:#0f9d58;
-color:white;
-padding:5px 10px;
-border-radius:20px;
-font-size:12px;
-margin-left:5px;
-}
-
-.floating-btn{
-position:absolute;
-bottom:100px;
-right:20px;
-background:#ff8c00;
-color:white;
-width:60px;
-height:60px;
-border-radius:50%;
-display:flex;
-align-items:center;
-justify-content:center;
-font-size:30px;
-cursor:pointer;
-box-shadow:0 4px 15px rgba(0,0,0,0.3);
-z-index:1000;
-}
-
-.bottom-sheet{
-position:absolute;
-bottom:0;
-width:100%;
-background:white;
-max-height:35%;
-overflow:auto;
-border-top-left-radius:20px;
-border-top-right-radius:20px;
-box-shadow:0 -4px 20px rgba(0,0,0,0.2);
-padding:10px;
-z-index:1000;
-}
-
-.spot-card{
-background:#f8f8f8;
-padding:10px;
-border-radius:10px;
-margin-bottom:8px;
-}
-
-.modal{
-position:fixed;
-top:0;left:0;
-width:100%;
-height:100%;
-background:rgba(0,0,0,0.5);
-display:none;
-align-items:center;
-justify-content:center;
-z-index:2000;
-}
-
-.modal-content{
-background:white;
-padding:20px;
-border-radius:15px;
-width:90%;
-max-width:400px;
-}
-
-.modal input, .modal select{
-width:100%;
-padding:8px;
-margin-bottom:8px;
-}
-
-button{
-background:#ff8c00;
-border:none;
-color:white;
-padding:8px 12px;
-border-radius:8px;
-cursor:pointer;
-}
+html, body { height: 100%; margin: 0; }
+#map { height: 100%; }
 </style>
 </head>
-
 <body>
 
 <div id="map"></div>
 
-<div class="topbar">
-<input type="text" placeholder="মসজিদ বা এলাকা খুঁজুন...">
-<div class="counter" id="spotCount">0 Spots</div>
-</div>
-
-<div class="floating-btn" onclick="openModal()">+</div>
-
-<div class="bottom-sheet">
-<h4>আজকের সক্রিয় স্পট</h4>
-<div id="spotList"></div>
-</div>
-
-<div class="modal" id="addModal">
-<div class="modal-content">
-<h3>বিরিয়ানি স্পট যোগ করুন</h3>
-<input id="name" placeholder="মসজিদের নাম">
-<input id="location" placeholder="এলাকা">
-<select id="foodType">
-<option>কাচ্চি বিরিয়ানি</option>
-<option>তেহারি</option>
-<option>গরুর মাংস</option>
-<option>চিকেন বিরিয়ানি</option>
-<option>মিশ্র</option>
-</select>
-<button onclick="autoLocation()">📍 Auto Detect</button>
-<button onclick="submitSpot()">Submit</button>
-<button onclick="closeModal()">Cancel</button>
-</div>
-</div>
-
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const firebaseConfig={
-apiKey:"AIzaSyDnCP_Dc3ok6liqzK6j5BAgs0jKfr600Kc",
-authDomain:"biryani-khoje-amra.firebaseapp.com",
-databaseURL:"https://biryani-khoje-amra-default-rtdb.asia-southeast1.firebasedatabase.app/",
-projectId:"biryani-khoje-amra"
-};
+var map = L.map('map').setView([23.8103, 90.4125], 13);
 
-firebase.initializeApp(firebaseConfig);
-const db=firebase.database();
-
-let map=L.map('map').setView([23.8103,90.4125],12);
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-attribution:'© OpenStreetMap contributors'
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
 }).addTo(map);
 
-function openModal(){ addModal.style.display="flex"; }
-function closeModal(){ addModal.style.display="none"; }
-
-function autoLocation(){
-navigator.geolocation.getCurrentPosition(pos=>{
-map.setView([pos.coords.latitude,pos.coords.longitude],15);
-});
-}
-
-function submitSpot(){
-navigator.geolocation.getCurrentPosition(pos=>{
-db.ref("spots/approved").push({
-name:name.value,
-location:location.value,
-food:foodType.value,
-lat:pos.coords.latitude,
-lng:pos.coords.longitude,
-trueCount:0,
-fakeCount:0
-});
-alert("Spot Added");
-closeModal();
-});
-}
-
-function loadSpots(){
-db.ref("spots/approved").on("value",snap=>{
-spotList.innerHTML="";
-let count=0;
-map.eachLayer(layer=>{
-if(layer instanceof L.Marker) map.removeLayer(layer);
-});
-
-snap.forEach(child=>{
-let spot=child.val();
-count++;
-
-L.marker([spot.lat,spot.lng]).addTo(map)
-.bindPopup(`<b>${spot.name}</b><br>${spot.location}<br>${spot.food}`);
-
-let card=document.createElement("div");
-card.className="spot-card";
-card.innerHTML=`
-<b>${spot.name}</b><br>
-${spot.location}<br>
-${spot.food}<br>
-👍 ${spot.trueCount||0} | ❌ ${spot.fakeCount||0}
-`;
-spotList.appendChild(card);
-});
-
-spotCount.innerText=count+" Spots";
-});
-}
-
-loadSpots();
+L.marker([23.8103, 90.4125]).addTo(map)
+    .bindPopup("Dhaka")
+    .openPopup();
 </script>
 
 </body>
