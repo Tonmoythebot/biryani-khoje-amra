@@ -2,30 +2,75 @@
 <html>
 <head>
 <meta charset="utf-8" />
-<title>Test Map</title>
+<title>বিরিয়ানির খোঁজে আমরা</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
-html, body { height: 100%; margin: 0; }
-#map { height: 100%; }
+html, body { height: 100%; margin: 0; font-family: sans-serif;}
+#map { height: 80%; }
+#list { height: 20%; overflow:auto; padding:10px; background:#f5f5f5;}
+.card{
+background:white;
+padding:8px;
+margin-bottom:5px;
+border-radius:8px;
+box-shadow:0 2px 5px rgba(0,0,0,0.1);
+}
 </style>
 </head>
 <body>
 
 <div id="map"></div>
+<div id="list"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
+
 <script>
-var map = L.map('map').setView([23.8103, 90.4125], 13);
+
+const firebaseConfig={
+apiKey:"AIzaSyDnCP_Dc3ok6liqzK6j5BAgs0jKfr600Kc",
+authDomain:"biryani-khoje-amra.firebaseapp.com",
+databaseURL:"https://biryani-khoje-amra-default-rtdb.asia-southeast1.firebasedatabase.app/",
+projectId:"biryani-khoje-amra"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db=firebase.database();
+
+// Map init
+var map = L.map('map').setView([23.8103, 90.4125], 12);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors'
 }).addTo(map);
 
-L.marker([23.8103, 90.4125]).addTo(map)
-    .bindPopup("Dhaka")
-    .openPopup();
+// Load spots
+db.ref("spots/approved").on("value", snapshot => {
+
+    document.getElementById("list").innerHTML = "";
+
+    snapshot.forEach(child => {
+
+        let spot = child.val();
+
+        // Marker
+        L.marker([spot.lat, spot.lng])
+            .addTo(map)
+            .bindPopup("<b>"+spot.name+"</b><br>"+spot.location);
+
+        // Card List
+        let div = document.createElement("div");
+        div.className = "card";
+        div.innerHTML = "<b>"+spot.name+"</b><br>"+spot.location;
+        document.getElementById("list").appendChild(div);
+
+    });
+
+});
+
 </script>
 
 </body>
