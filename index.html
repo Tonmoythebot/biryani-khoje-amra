@@ -9,49 +9,111 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
 
 <style>
-body,html{margin:0;padding:0;height:100%;font-family:sans-serif;}
+body,html{margin:0;padding:0;height:100%;font-family:sans-serif;background:#f5f5f5}
+#map{height:100vh;width:100%}
 
-header{
+.topbar{
 position:absolute;
-top:0;
-width:100%;
-background:linear-gradient(135deg,#0f9d58,#087f3f);
-color:white;
-padding:15px;
-text-align:center;
-z-index:1000;
-font-weight:bold;
-}
-
-#map{height:100vh;width:100%;}
-
-.floating{
-position:absolute;
-bottom:20px;
+top:10px;
 left:50%;
 transform:translateX(-50%);
+width:95%;
+max-width:800px;
 background:white;
-padding:12px;
-border-radius:12px;
-box-shadow:0 4px 20px rgba(0,0,0,0.3);
+border-radius:15px;
+padding:10px;
+display:flex;
+align-items:center;
+box-shadow:0 4px 20px rgba(0,0,0,0.2);
 z-index:1000;
-width:90%;
-max-width:420px;
 }
 
-input{
-width:100%;
-padding:6px;
-margin:4px 0;
-}
-
-button{
-padding:6px 10px;
+.topbar input{
+flex:1;
 border:none;
-border-radius:6px;
+outline:none;
+padding:8px;
+}
+
+.counter{
+background:#0f9d58;
+color:white;
+padding:5px 10px;
+border-radius:20px;
+font-size:12px;
+margin-left:5px;
+}
+
+.floating-btn{
+position:absolute;
+bottom:100px;
+right:20px;
 background:#ff8c00;
 color:white;
-margin-top:5px;
+width:55px;
+height:55px;
+border-radius:50%;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:28px;
+cursor:pointer;
+box-shadow:0 4px 15px rgba(0,0,0,0.3);
+z-index:1000;
+}
+
+.bottom-sheet{
+position:absolute;
+bottom:0;
+width:100%;
+background:white;
+max-height:40%;
+overflow:auto;
+border-top-left-radius:20px;
+border-top-right-radius:20px;
+box-shadow:0 -4px 20px rgba(0,0,0,0.2);
+padding:10px;
+z-index:1000;
+}
+
+.spot-card{
+background:#f8f8f8;
+padding:10px;
+border-radius:10px;
+margin-bottom:8px;
+}
+
+.modal{
+position:fixed;
+top:0;left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,0.5);
+display:none;
+align-items:center;
+justify-content:center;
+z-index:2000;
+}
+
+.modal-content{
+background:white;
+padding:20px;
+border-radius:15px;
+width:90%;
+max-width:400px;
+}
+
+.modal input, .modal select{
+width:100%;
+padding:8px;
+margin-bottom:8px;
+}
+button{
+background:#ff8c00;
+border:none;
+color:white;
+padding:8px 12px;
+border-radius:8px;
 cursor:pointer;
 }
 </style>
@@ -59,14 +121,36 @@ cursor:pointer;
 
 <body>
 
-<header>🍽 বিরিয়ানির খোঁজে আমরা</header>
 <div id="map"></div>
 
-<div class="floating">
-<input type="text" id="name" placeholder="মসজিদের নাম">
-<input type="text" id="location" placeholder="এলাকা">
-<button onclick="autoLocation()">📍 Auto Location</button>
+<div class="topbar">
+<input type="text" placeholder="মসজিদ বা এলাকা খুঁজুন...">
+<div class="counter" id="spotCount">0 Spots</div>
+</div>
+
+<div class="floating-btn" onclick="openModal()">+</div>
+
+<div class="bottom-sheet">
+<h4>আজকের সক্রিয় স্পট</h4>
+<div id="spotList"></div>
+</div>
+
+<div class="modal" id="addModal">
+<div class="modal-content">
+<h3>বিরিয়ানি স্পট যোগ করুন</h3>
+<input id="name" placeholder="মসজিদের নাম">
+<input id="location" placeholder="এলাকা">
+<select id="foodType">
+<option>কাচ্চি বিরিয়ানি</option>
+<option>তেহারি</option>
+<option>গরুর মাংস</option>
+<option>চিকেন বিরিয়ানি</option>
+<option>মিশ্র</option>
+</select>
+<button onclick="autoLocation()">Auto Detect Location</button>
 <button onclick="submitSpot()">Submit</button>
+<button onclick="closeModal()">Cancel</button>
+</div>
 </div>
 
 <script>
@@ -93,12 +177,13 @@ zoom:12
 loadSpots();
 }
 
+function openModal(){ addModal.style.display="flex"; }
+function closeModal(){ addModal.style.display="none"; }
+
 function autoLocation(){
 navigator.geolocation.getCurrentPosition(pos=>{
 userLat=pos.coords.latitude;
 userLng=pos.coords.longitude;
-map.setCenter({lat:userLat,lng:userLng});
-map.setZoom(15);
 });
 }
 
@@ -106,57 +191,41 @@ function submitSpot(){
 db.ref("spots/pending").push({
 name:name.value,
 location:location.value,
+food:foodType.value,
 lat:userLat,
-lng:userLng
+lng:userLng,
+trueCount:0,
+fakeCount:0
 });
-alert("Pending for approval");
+alert("Approval Pending");
+closeModal();
 }
 
 function loadSpots(){
 db.ref("spots/approved").on("value",snap=>{
-const data=snap.val();
-for(let key in data){
-
-let spot=data[key];
-let trueCount=spot.trueCount||0;
-let fakeCount=spot.fakeCount||0;
-let total=trueCount+fakeCount;
-let color="green";
-
-if(total>0){
-let percent=(trueCount/total)*100;
-if(percent<50) color="red";
-}
+spotList.innerHTML="";
+let count=0;
+snap.forEach(child=>{
+let spot=child.val();
+count++;
 
 let marker=new google.maps.Marker({
 position:{lat:spot.lat,lng:spot.lng},
-map:map,
-icon:{
-url:"http://maps.google.com/mapfiles/ms/icons/"+color+"-dot.png"
-}
+map:map
 });
 
-let content=`
+let card=document.createElement("div");
+card.className="spot-card";
+card.innerHTML=`
 <b>${spot.name}</b><br>
-${spot.location}<br><br>
-👍 ${trueCount} <button onclick="voteTrue('${key}')">Vote</button><br>
-❌ ${fakeCount} <button onclick="voteFake('${key}')">Vote</button>
+${spot.location}<br>
+${spot.food}<br>
+👍 ${spot.trueCount||0} | ❌ ${spot.fakeCount||0}
 `;
-
-let info=new google.maps.InfoWindow({content:content});
-marker.addListener("click",()=>info.open(map,marker));
-}
+spotList.appendChild(card);
 });
-}
-
-function voteTrue(id){
-db.ref("spots/approved/"+id+"/trueCount")
-.transaction(c=>(c||0)+1);
-}
-
-function voteFake(id){
-db.ref("spots/approved/"+id+"/fakeCount")
-.transaction(c=>(c||0)+1);
+spotCount.innerText=count+" Spots";
+});
 }
 
 </script>
