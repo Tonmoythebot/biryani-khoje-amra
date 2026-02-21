@@ -1,171 +1,41 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html>
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>বিরিয়ানির খোঁজে আমরা</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"/>
-
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
-html,body{
+html, body {
 margin:0;
 padding:0;
 height:100%;
-font-family:system-ui;
-background:#f8fafc;
 }
 
-#map{
-position:absolute;
-width:100%;
+#map {
 height:100%;
-z-index:1;
-}
-
-/* Premium Topbar */
-.topbar{
-position:absolute;
-top:15px;
-left:50%;
-transform:translateX(-50%);
-width:92%;
-padding:14px;
-border-radius:20px;
-display:flex;
-justify-content:space-between;
-align-items:center;
-background:rgba(15,122,79,0.85);
-backdrop-filter:blur(12px);
-color:white;
-z-index:1000;
-box-shadow:0 8px 30px rgba(0,0,0,0.25);
-}
-
-.logo{
-font-weight:600;
-font-size:15px;
-}
-
-.counter{
-background:white;
-color:#0f7a4f;
-padding:6px 14px;
-border-radius:20px;
-font-size:13px;
-font-weight:600;
-}
-
-/* Floating Add Button */
-.fab{
-position:absolute;
-bottom:40px;
-right:20px;
-width:65px;
-height:65px;
-border-radius:50%;
-background:linear-gradient(135deg,#0f7a4f,#16a34a);
-color:white;
-display:flex;
-align-items:center;
-justify-content:center;
-font-size:30px;
-z-index:1000;
-cursor:pointer;
-box-shadow:0 10px 25px rgba(0,0,0,0.35);
-transition:.3s;
-}
-
-.fab:hover{
-transform:scale(1.08);
-}
-
-/* Premium Popup */
-.leaflet-popup-content-wrapper{
-border-radius:15px;
-}
-.leaflet-popup-content{
-font-size:14px;
+width:100%;
 }
 </style>
 </head>
+
 <body>
 
 <div id="map"></div>
 
-<div class="topbar">
-<div class="logo">🍽 বিরিয়ানির খোঁজে আমরা</div>
-<div class="counter" id="count">0 Spots</div>
-</div>
-
-<div class="fab" onclick="addSpot()">+</div>
-
 <script>
+const map = L.map('map').setView([23.8103, 90.4125], 12);
 
-// Supabase
-const supabase = window.supabase.createClient(
-'https://tdrdlydhleggthyfhhnj.supabase.co',
-'sb_publishable_XzOZ_4emiYr-9yPHVYxfCg_9yEzW7n3'
-);
-
-// Map Init
-const map = L.map('map').setView([23.8103,90.4125],12);
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-maxZoom:19
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+maxZoom: 19,
+attribution: '&copy; OpenStreetMap'
 }).addTo(map);
 
-// Marker Cluster Group
-const markers = L.markerClusterGroup();
-map.addLayer(markers);
-
-// Load Spots
-async function loadSpots(){
-markers.clearLayers();
-
-const {data,error} = await supabase.from('spots').select('*');
-if(error){
-console.log(error);
-return;
-}
-
-data.forEach(spot=>{
-const marker = L.marker([spot.lat,spot.lng]);
-
-marker.bindPopup(`
-<b>${spot.name}</b><br>
-${spot.area}<br>
-🍛 ${spot.food_type}
-`);
-
-markers.addLayer(marker);
-});
-
-document.getElementById("count").innerText = data.length+" Spots";
-}
-
-loadSpots();
-
-// Add Spot
-function addSpot(){
-navigator.geolocation.getCurrentPosition(async(pos)=>{
-await supabase.from('spots').insert([{
-name:"নতুন স্পট",
-area:"লোকেশন অটো",
-food_type:"বিরিয়ানি",
-lat:pos.coords.latitude,
-lng:pos.coords.longitude
-}]);
-loadSpots();
-});
-}
-
+L.marker([23.8103, 90.4125]).addTo(map)
+.bindPopup("Dhaka Test")
+.openPopup();
 </script>
 
 </body>
