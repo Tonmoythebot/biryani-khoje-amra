@@ -1,75 +1,233 @@
 <!DOCTYPE html>
-<html>
+<html lang="bn">
 <head>
-<meta charset="utf-8" />
-<title>বিরিয়ানির খোঁজে আমরা</title>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>বিরিয়ানির খোঁজে আমরা</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
 <style>
-html, body { height: 100%; margin: 0; font-family: sans-serif;}
-#map { height: 80%; }
-#list { height: 20%; overflow:auto; padding:10px; background:#f5f5f5;}
-.card{
-background:white;
-padding:8px;
-margin-bottom:5px;
-border-radius:8px;
-box-shadow:0 2px 5px rgba(0,0,0,0.1);
+
+/* ===== AUTO THEME ===== */
+:root{
+--green:#0f7a4f;
+--green-light:#16a34a;
+--bg-light:#f8fafc;
+--bg-dark:#0f172a;
+--card-light:white;
+--card-dark:#1e293b;
 }
+
+body{
+margin:0;
+font-family:system-ui;
+transition:0.3s;
+}
+
+/* Day */
+body.light{
+background:var(--bg-light);
+color:#111;
+}
+
+/* Night */
+body.dark{
+background:var(--bg-dark);
+color:white;
+}
+
+/* MAP */
+#map{
+height:100vh;
+width:100%;
+}
+
+/* HEADER */
+.topbar{
+position:absolute;
+top:15px;
+left:50%;
+transform:translateX(-50%);
+width:92%;
+padding:12px;
+border-radius:18px;
+backdrop-filter:blur(14px);
+display:flex;
+gap:10px;
+align-items:center;
+z-index:1000;
+}
+
+body.light .topbar{
+background:rgba(255,255,255,0.85);
+}
+
+body.dark .topbar{
+background:rgba(30,41,59,0.8);
+}
+
+.search{
+flex:1;
+border:none;
+outline:none;
+font-size:14px;
+background:transparent;
+}
+
+.counter{
+background:var(--green);
+color:white;
+padding:6px 12px;
+border-radius:20px;
+font-size:13px;
+}
+
+/* CATEGORY CHIPS */
+.chips{
+position:absolute;
+top:80px;
+left:50%;
+transform:translateX(-50%);
+width:92%;
+display:flex;
+gap:8px;
+overflow:auto;
+z-index:1000;
+}
+
+.chip{
+padding:6px 14px;
+border-radius:20px;
+font-size:13px;
+white-space:nowrap;
+cursor:pointer;
+}
+
+body.light .chip{
+background:white;
+box-shadow:0 2px 6px rgba(0,0,0,0.1);
+}
+
+body.dark .chip{
+background:#1e293b;
+}
+
+/* FLOAT BUTTON */
+.fab{
+position:absolute;
+bottom:100px;
+right:20px;
+background:linear-gradient(135deg,var(--green),var(--green-light));
+color:white;
+width:65px;
+height:65px;
+border-radius:50%;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:32px;
+cursor:pointer;
+z-index:1000;
+box-shadow:0 6px 20px rgba(0,0,0,0.4);
+}
+
+/* BOTTOM SHEET */
+.bottom-sheet{
+position:fixed;
+bottom:0;
+left:0;
+width:100%;
+height:35%;
+border-top-left-radius:25px;
+border-top-right-radius:25px;
+padding:15px;
+overflow:auto;
+z-index:1500;
+}
+
+body.light .bottom-sheet{
+background:white;
+}
+
+body.dark .bottom-sheet{
+background:#1e293b;
+}
+
+.spot-card{
+padding:10px;
+margin-bottom:10px;
+border-radius:12px;
+}
+
+body.light .spot-card{
+background:#f1f5f9;
+}
+
+body.dark .spot-card{
+background:#334155;
+}
+
+.vote{
+display:flex;
+gap:15px;
+font-size:13px;
+margin-top:5px;
+}
+
 </style>
 </head>
+
 <body>
 
 <div id="map"></div>
-<div id="list"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
+<div class="topbar">
+<input class="search" placeholder="মসজিদ বা এলাকা খুঁজুন...">
+<div class="counter">0 Spots</div>
+</div>
+
+<div class="chips">
+<div class="chip">সব</div>
+<div class="chip">বিরিয়ানি</div>
+<div class="chip">তেহারি</div>
+<div class="chip">হালিম</div>
+<div class="chip">সিম্পল</div>
+</div>
+
+<div class="fab">+</div>
+
+<div class="bottom-sheet">
+<h3>আজকের সক্রিয় স্পট</h3>
+
+<div class="spot-card">
+<b>লালবাগ শাহী মসজিদ</b>
+<div>লালবাগ, ঢাকা</div>
+<div class="vote">
+<span>👍 12</span>
+<span>👎 2</span>
+</div>
+</div>
+
+</div>
 
 <script>
 
-const firebaseConfig={
-apiKey:"AIzaSyDnCP_Dc3ok6liqzK6j5BAgs0jKfr600Kc",
-authDomain:"biryani-khoje-amra.firebaseapp.com",
-databaseURL:"https://biryani-khoje-amra-default-rtdb.asia-southeast1.firebasedatabase.app/",
-projectId:"biryani-khoje-amra"
-};
+/* ===== AUTO DAY NIGHT ===== */
+const hour = new Date().getHours();
+if(hour >= 6 && hour < 18){
+document.body.classList.add('light');
+}else{
+document.body.classList.add('dark');
+}
 
-firebase.initializeApp(firebaseConfig);
-const db=firebase.database();
+/* MAP INIT */
+const map = L.map('map').setView([23.8103,90.4125],12);
 
-// Map init
-var map = L.map('map').setView([23.8103, 90.4125], 12);
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors'
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+maxZoom:19
 }).addTo(map);
-
-// Load spots
-db.ref("spots/approved").on("value", snapshot => {
-
-    document.getElementById("list").innerHTML = "";
-
-    snapshot.forEach(child => {
-
-        let spot = child.val();
-
-        // Marker
-        L.marker([spot.lat, spot.lng])
-            .addTo(map)
-            .bindPopup("<b>"+spot.name+"</b><br>"+spot.location);
-
-        // Card List
-        let div = document.createElement("div");
-        div.className = "card";
-        div.innerHTML = "<b>"+spot.name+"</b><br>"+spot.location;
-        document.getElementById("list").appendChild(div);
-
-    });
-
-});
 
 </script>
 
