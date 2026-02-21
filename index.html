@@ -10,61 +10,61 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
-:root{
---green:#0f7a4f;
---green-light:#16a34a;
---bg-light:#f8fafc;
---bg-dark:#0f172a;
+html,body{
+margin:0;
+padding:0;
+height:100%;
+font-family:sans-serif;
 }
 
-body{margin:0;font-family:sans-serif;transition:.3s}
-body.light{background:var(--bg-light);color:#111}
-body.dark{background:var(--bg-dark);color:white}
-
-#map{height:100vh;width:100%}
+#map{
+position:absolute;
+top:0;
+left:0;
+width:100%;
+height:100%;
+z-index:1;
+}
 
 .topbar{
-position:absolute;top:15px;left:50%;
+position:absolute;
+top:15px;
+left:50%;
 transform:translateX(-50%);
-width:92%;padding:12px;border-radius:18px;
-backdrop-filter:blur(12px);
-display:flex;gap:10px;align-items:center;
+width:90%;
+background:white;
+padding:10px;
+border-radius:12px;
+display:flex;
+justify-content:space-between;
 z-index:1000;
+box-shadow:0 4px 12px rgba(0,0,0,0.2);
 }
-body.light .topbar{background:rgba(255,255,255,.85)}
-body.dark .topbar{background:rgba(30,41,59,.8)}
 
-.search{flex:1;border:none;outline:none;background:transparent}
 .counter{
-background:var(--green);color:white;
-padding:6px 12px;border-radius:20px;font-size:13px
+background:#0f7a4f;
+color:white;
+padding:5px 10px;
+border-radius:20px;
 }
 
 .fab{
-position:absolute;bottom:100px;right:20px;
-background:linear-gradient(135deg,var(--green),var(--green-light));
-color:white;width:65px;height:65px;border-radius:50%;
-display:flex;align-items:center;justify-content:center;
-font-size:32px;cursor:pointer;z-index:1000;
-box-shadow:0 6px 20px rgba(0,0,0,.4);
+position:absolute;
+bottom:30px;
+right:20px;
+width:60px;
+height:60px;
+border-radius:50%;
+background:#0f7a4f;
+color:white;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:30px;
+z-index:1000;
+cursor:pointer;
+box-shadow:0 6px 20px rgba(0,0,0,0.3);
 }
-
-.bottom-sheet{
-position:fixed;bottom:0;width:100%;height:35%;
-border-top-left-radius:25px;border-top-right-radius:25px;
-padding:15px;overflow:auto;z-index:1500;
-}
-body.light .bottom-sheet{background:white}
-body.dark .bottom-sheet{background:#1e293b}
-
-.spot-card{
-padding:10px;margin-bottom:10px;border-radius:12px
-}
-body.light .spot-card{background:#f1f5f9}
-body.dark .spot-card{background:#334155}
-
-.vote{display:flex;gap:15px;font-size:13px;margin-top:5px;cursor:pointer}
-button{padding:5px 8px;border:none;border-radius:6px;margin-right:5px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -72,134 +72,62 @@ button{padding:5px 8px;border:none;border-radius:6px;margin-right:5px;cursor:poi
 <div id="map"></div>
 
 <div class="topbar">
-<input class="search" placeholder="মসজিদ বা এলাকা খুঁজুন...">
+<div>বিরিয়ানির খোঁজে আমরা</div>
 <div class="counter" id="count">0 Spots</div>
 </div>
 
-<div class="fab" onclick="addSpotPrompt()">+</div>
-
-<div class="bottom-sheet">
-<h3>আজকের সক্রিয় স্পট</h3>
-<div id="spotList"></div>
-</div>
+<div class="fab" onclick="addSpot()">+</div>
 
 <script>
 
-// 🌗 Auto Theme
-const hour=new Date().getHours();
-document.body.classList.add(hour>=6&&hour<18?'light':'dark');
-
-// 🔥 Supabase Config (YOUR REAL KEY ADDED)
+// Supabase Connect
 const supabase = window.supabase.createClient(
 'https://tdrdlydhleggthyfhhnj.supabase.co',
 'sb_publishable_XzOZ_4emiYr-9yPHVYxfCg_9yEzW7n3'
 );
 
-// 🌍 Map
-const map=L.map('map').setView([23.8103,90.4125],12);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-maxZoom:19
+// Initialize Map
+const map = L.map('map').setView([23.8103, 90.4125], 12);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+maxZoom: 19
 }).addTo(map);
 
-// 📱 Device ID (Anti-Spam)
-let deviceId=localStorage.getItem("device_id");
-if(!deviceId){
-deviceId=crypto.randomUUID();
-localStorage.setItem("device_id",deviceId);
-}
-
-let markers=[];
-
+// Load Spots
 async function loadSpots(){
-const {data,error}=await supabase.from('spots').select('*');
-if(error){console.log(error);return;}
-
-markers.forEach(m=>map.removeLayer(m));
-markers=[];
-spotList.innerHTML="";
+const {data,error} = await supabase.from('spots').select('*');
+if(error){
+console.log(error);
+alert("Database error - check console");
+return;
+}
 
 data.forEach(spot=>{
-let total=spot.verified_votes+spot.fake_votes;
-let ratio=total?spot.verified_votes/total:1;
-let color=ratio>=0.7?'green':ratio>=0.4?'orange':'red';
-
-let icon=L.icon({
-iconUrl:`https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${color}.png`,
-iconSize:[25,41],iconAnchor:[12,41]
+L.marker([spot.lat,spot.lng])
+.addTo(map)
+.bindPopup(`<b>${spot.name}</b><br>${spot.area}`);
 });
 
-let marker=L.marker([spot.lat,spot.lng],{icon}).addTo(map);
-
-marker.bindPopup(`
-<b>${spot.name}</b><br>
-${spot.area}<br>
-${spot.food_type}<br><br>
-<button onclick="vote('${spot.id}','verified')">👍 ${spot.verified_votes}</button>
-<button onclick="vote('${spot.id}','fake')">👎 ${spot.fake_votes}</button>
-`);
-
-markers.push(marker);
-
-let card=document.createElement("div");
-card.className="spot-card";
-card.innerHTML=`
-<b>${spot.name}</b><br>
-${spot.area}<br>
-${spot.food_type}
-<div class="vote">
-<span onclick="vote('${spot.id}','verified')">👍 ${spot.verified_votes}</span>
-<span onclick="vote('${spot.id}','fake')">👎 ${spot.fake_votes}</span>
-</div>
-`;
-spotList.appendChild(card);
-});
-
-count.innerText=data.length+" Spots";
-}
-
-async function vote(id,type){
-const {error}=await supabase.from('votes').insert([{
-spot_id:id,
-vote_type:type,
-device_id:deviceId
-}]);
-
-if(error){alert("You already voted!");return;}
-
-if(type==='verified'){
-await supabase.from('spots')
-.update({verified_votes: supabase.rpc ? undefined : undefined});
-}
-
-if(type==='verified'){
-await supabase.rpc('increment_verified',{spot_id:id});
-}else{
-await supabase.rpc('increment_fake',{spot_id:id});
+document.getElementById("count").innerText = data.length + " Spots";
 }
 
 loadSpots();
-}
 
-async function addSpotPrompt(){
-let name=prompt("মসজিদের নাম:");
-if(!name)return;
-
+// Add Spot
+function addSpot(){
 navigator.geolocation.getCurrentPosition(async(pos)=>{
 await supabase.from('spots').insert([{
-name:name,
+name:"New Spot",
 area:"Unknown",
 food_type:"বিরিয়ানি",
 lat:pos.coords.latitude,
-lng:pos.coords.longitude,
-verified_votes:0,
-fake_votes:0
+lng:pos.coords.longitude
 }]);
 loadSpots();
 });
 }
 
-loadSpots();
-
 </script>
+
 </body>
 </html>
