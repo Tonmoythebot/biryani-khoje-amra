@@ -7,229 +7,199 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
-
-/* ===== AUTO THEME ===== */
 :root{
 --green:#0f7a4f;
 --green-light:#16a34a;
 --bg-light:#f8fafc;
 --bg-dark:#0f172a;
---card-light:white;
---card-dark:#1e293b;
 }
 
-body{
-margin:0;
-font-family:system-ui;
-transition:0.3s;
-}
+body{margin:0;font-family:sans-serif;transition:.3s}
+body.light{background:var(--bg-light);color:#111}
+body.dark{background:var(--bg-dark);color:white}
 
-/* Day */
-body.light{
-background:var(--bg-light);
-color:#111;
-}
+#map{height:100vh;width:100%}
 
-/* Night */
-body.dark{
-background:var(--bg-dark);
-color:white;
-}
-
-/* MAP */
-#map{
-height:100vh;
-width:100%;
-}
-
-/* HEADER */
 .topbar{
-position:absolute;
-top:15px;
-left:50%;
+position:absolute;top:15px;left:50%;
 transform:translateX(-50%);
-width:92%;
-padding:12px;
-border-radius:18px;
-backdrop-filter:blur(14px);
-display:flex;
-gap:10px;
-align-items:center;
+width:92%;padding:12px;border-radius:18px;
+backdrop-filter:blur(12px);
+display:flex;gap:10px;align-items:center;
 z-index:1000;
 }
+body.light .topbar{background:rgba(255,255,255,.85)}
+body.dark .topbar{background:rgba(30,41,59,.8)}
 
-body.light .topbar{
-background:rgba(255,255,255,0.85);
-}
-
-body.dark .topbar{
-background:rgba(30,41,59,0.8);
-}
-
-.search{
-flex:1;
-border:none;
-outline:none;
-font-size:14px;
-background:transparent;
-}
-
+.search{flex:1;border:none;outline:none;background:transparent}
 .counter{
-background:var(--green);
-color:white;
-padding:6px 12px;
-border-radius:20px;
-font-size:13px;
+background:var(--green);color:white;
+padding:6px 12px;border-radius:20px;font-size:13px
 }
 
-/* CATEGORY CHIPS */
-.chips{
-position:absolute;
-top:80px;
-left:50%;
-transform:translateX(-50%);
-width:92%;
-display:flex;
-gap:8px;
-overflow:auto;
-z-index:1000;
-}
-
-.chip{
-padding:6px 14px;
-border-radius:20px;
-font-size:13px;
-white-space:nowrap;
-cursor:pointer;
-}
-
-body.light .chip{
-background:white;
-box-shadow:0 2px 6px rgba(0,0,0,0.1);
-}
-
-body.dark .chip{
-background:#1e293b;
-}
-
-/* FLOAT BUTTON */
 .fab{
-position:absolute;
-bottom:100px;
-right:20px;
+position:absolute;bottom:100px;right:20px;
 background:linear-gradient(135deg,var(--green),var(--green-light));
-color:white;
-width:65px;
-height:65px;
-border-radius:50%;
-display:flex;
-align-items:center;
-justify-content:center;
-font-size:32px;
-cursor:pointer;
-z-index:1000;
-box-shadow:0 6px 20px rgba(0,0,0,0.4);
+color:white;width:65px;height:65px;border-radius:50%;
+display:flex;align-items:center;justify-content:center;
+font-size:32px;cursor:pointer;z-index:1000;
+box-shadow:0 6px 20px rgba(0,0,0,.4);
 }
 
-/* BOTTOM SHEET */
 .bottom-sheet{
-position:fixed;
-bottom:0;
-left:0;
-width:100%;
-height:35%;
-border-top-left-radius:25px;
-border-top-right-radius:25px;
-padding:15px;
-overflow:auto;
-z-index:1500;
+position:fixed;bottom:0;width:100%;height:35%;
+border-top-left-radius:25px;border-top-right-radius:25px;
+padding:15px;overflow:auto;z-index:1500;
 }
-
-body.light .bottom-sheet{
-background:white;
-}
-
-body.dark .bottom-sheet{
-background:#1e293b;
-}
+body.light .bottom-sheet{background:white}
+body.dark .bottom-sheet{background:#1e293b}
 
 .spot-card{
-padding:10px;
-margin-bottom:10px;
-border-radius:12px;
+padding:10px;margin-bottom:10px;border-radius:12px
 }
+body.light .spot-card{background:#f1f5f9}
+body.dark .spot-card{background:#334155}
 
-body.light .spot-card{
-background:#f1f5f9;
-}
-
-body.dark .spot-card{
-background:#334155;
-}
-
-.vote{
-display:flex;
-gap:15px;
-font-size:13px;
-margin-top:5px;
-}
-
+.vote{display:flex;gap:15px;font-size:13px;margin-top:5px;cursor:pointer}
+button{padding:5px 8px;border:none;border-radius:6px;margin-right:5px;cursor:pointer}
 </style>
 </head>
-
 <body>
 
 <div id="map"></div>
 
 <div class="topbar">
 <input class="search" placeholder="মসজিদ বা এলাকা খুঁজুন...">
-<div class="counter">0 Spots</div>
+<div class="counter" id="count">0 Spots</div>
 </div>
 
-<div class="chips">
-<div class="chip">সব</div>
-<div class="chip">বিরিয়ানি</div>
-<div class="chip">তেহারি</div>
-<div class="chip">হালিম</div>
-<div class="chip">সিম্পল</div>
-</div>
-
-<div class="fab">+</div>
+<div class="fab" onclick="addSpotPrompt()">+</div>
 
 <div class="bottom-sheet">
 <h3>আজকের সক্রিয় স্পট</h3>
-
-<div class="spot-card">
-<b>লালবাগ শাহী মসজিদ</b>
-<div>লালবাগ, ঢাকা</div>
-<div class="vote">
-<span>👍 12</span>
-<span>👎 2</span>
-</div>
-</div>
-
+<div id="spotList"></div>
 </div>
 
 <script>
 
-/* ===== AUTO DAY NIGHT ===== */
-const hour = new Date().getHours();
-if(hour >= 6 && hour < 18){
-document.body.classList.add('light');
-}else{
-document.body.classList.add('dark');
-}
+// 🌗 Auto Theme
+const hour=new Date().getHours();
+document.body.classList.add(hour>=6&&hour<18?'light':'dark');
 
-/* MAP INIT */
-const map = L.map('map').setView([23.8103,90.4125],12);
+// 🔥 Supabase Config (YOUR REAL KEY ADDED)
+const supabase = window.supabase.createClient(
+'https://tdrdlydhleggthyfhhnj.supabase.co',
+'sb_publishable_XzOZ_4emiYr-9yPHVYxfCg_9yEzW7n3'
+);
 
+// 🌍 Map
+const map=L.map('map').setView([23.8103,90.4125],12);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
 maxZoom:19
 }).addTo(map);
 
-</script>
+// 📱 Device ID (Anti-Spam)
+let deviceId=localStorage.getItem("device_id");
+if(!deviceId){
+deviceId=crypto.randomUUID();
+localStorage.setItem("device_id",deviceId);
+}
 
+let markers=[];
+
+async function loadSpots(){
+const {data,error}=await supabase.from('spots').select('*');
+if(error){console.log(error);return;}
+
+markers.forEach(m=>map.removeLayer(m));
+markers=[];
+spotList.innerHTML="";
+
+data.forEach(spot=>{
+let total=spot.verified_votes+spot.fake_votes;
+let ratio=total?spot.verified_votes/total:1;
+let color=ratio>=0.7?'green':ratio>=0.4?'orange':'red';
+
+let icon=L.icon({
+iconUrl:`https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${color}.png`,
+iconSize:[25,41],iconAnchor:[12,41]
+});
+
+let marker=L.marker([spot.lat,spot.lng],{icon}).addTo(map);
+
+marker.bindPopup(`
+<b>${spot.name}</b><br>
+${spot.area}<br>
+${spot.food_type}<br><br>
+<button onclick="vote('${spot.id}','verified')">👍 ${spot.verified_votes}</button>
+<button onclick="vote('${spot.id}','fake')">👎 ${spot.fake_votes}</button>
+`);
+
+markers.push(marker);
+
+let card=document.createElement("div");
+card.className="spot-card";
+card.innerHTML=`
+<b>${spot.name}</b><br>
+${spot.area}<br>
+${spot.food_type}
+<div class="vote">
+<span onclick="vote('${spot.id}','verified')">👍 ${spot.verified_votes}</span>
+<span onclick="vote('${spot.id}','fake')">👎 ${spot.fake_votes}</span>
+</div>
+`;
+spotList.appendChild(card);
+});
+
+count.innerText=data.length+" Spots";
+}
+
+async function vote(id,type){
+const {error}=await supabase.from('votes').insert([{
+spot_id:id,
+vote_type:type,
+device_id:deviceId
+}]);
+
+if(error){alert("You already voted!");return;}
+
+if(type==='verified'){
+await supabase.from('spots')
+.update({verified_votes: supabase.rpc ? undefined : undefined});
+}
+
+if(type==='verified'){
+await supabase.rpc('increment_verified',{spot_id:id});
+}else{
+await supabase.rpc('increment_fake',{spot_id:id});
+}
+
+loadSpots();
+}
+
+async function addSpotPrompt(){
+let name=prompt("মসজিদের নাম:");
+if(!name)return;
+
+navigator.geolocation.getCurrentPosition(async(pos)=>{
+await supabase.from('spots').insert([{
+name:name,
+area:"Unknown",
+food_type:"বিরিয়ানি",
+lat:pos.coords.latitude,
+lng:pos.coords.longitude,
+verified_votes:0,
+fake_votes:0
+}]);
+loadSpots();
+});
+}
+
+loadSpots();
+
+</script>
 </body>
 </html>
